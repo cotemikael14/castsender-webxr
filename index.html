@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CastSender WebXR</title>
+    
+    <!-- PWA Meta tags -->
+    <meta name="theme-color" content="#6200EE">
+    <meta name="description" content="Application de partage d'écran WebXR pour casques VR">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icon-192.png">
+    
+    <!-- CSS -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .ip-info {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            margin-bottom: 20px;
+            color: #FFD700;
+            font-size: 1.3rem;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+            align-items: end;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 16px;
+        }
+
+        .input-group {
+            flex: 1;
+        }
+
+        .port-input {
+            flex: 0 0 120px;
+        }
+
+        button {
+            background: linear-gradient(45deg, #FF6B6B, #FF8E53);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .status {
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+
+        .status.connected {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid #4CAF50;
+            color: #4CAF50;
+        }
+
+        .status.disconnected {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid #F44336;
+            color: #F44336;
+        }
+
+        .status.streaming {
+            background: rgba(33, 150, 243, 0.2);
+            border: 1px solid #2196F3;
+            color: #2196F3;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .qr-scanner {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .qr-video {
+            width: 100%;
+            border-radius: 10px;
+        }
+
+        .qr-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border: 2px solid #FFD700;
+            border-radius: 10px;
+            pointer-events: none;
+        }
+
+        .qr-overlay::before,
+        .qr-overlay::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #FFD700;
+        }
+
+        .qr-overlay::before {
+            top: -3px;
+            left: -3px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .qr-overlay::after {
+            bottom: -3px;
+            right: -3px;
+            border-left: none;
+            border-top: none;
+        }
+
+        .webxr-info {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid #FFC107;
+            color: #FFC107;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .setting-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .setting-item label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .setting-item input[type="checkbox"] {
+            width: auto;
+        }
+
+        .setting-item select {
+            width: 100%;
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                flex-direction: column;
+            }
+            
+            .port-input {
+                flex: 1;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 CastSender WebXR</h1>
+            <div class="ip-info">
+                <span id="localIp">Votre IP: Détection en cours...</span>
+            </div>
+        </div>
+
+        <!-- WebXR Status -->
+        <div id="webxrInfo" class="webxr-info hidden">
+            <strong>🥽 Mode WebXR:</strong> <span id="webxrStatus">Non disponible</span>
+        </div>
+
+        <!-- Connection Card -->
+        <div class="card">
+            <h2>🔗 Configuration de la connexion</h2>
+            
+            <div class="form-group">
+                <div class="form-row">
+                    <div class="input-group">
+                        <label for="serverIp">Adresse IP du serveur</label>
+                        <input type="text" id="serverIp" placeholder="192.168.1.100">
+                    </div>
+                    <div class="port-input">
+                        <label for="serverPort">Port</label>
+                        <input type="number" id="serverPort" value="8080">
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button id="connectBtn">🔌 Connecter</button>
+                <button id="scanQrBtn">📷 Scanner QR</button>
+            </div>
+
+            <div id="connectionStatus" class="status disconnected">
+                État: Déconnecté
+            </div>
+        </div>
+
+        <!-- QR Scanner -->
+        <div id="qrScannerCard" class="card hidden">
+            <h2>📱 Scanner QR Code</h2>
+            <div class="qr-scanner">
+                <video id="qrVideo" class="qr-video" autoplay muted playsinline></video>
+                <div class="qr-overlay"></div>
+            </div>
+            <button id="stopQrBtn">❌ Arrêter le scan</button>
+        </div>
+
+        <!-- Screen Share Card -->
+        <div class="card">
+            <h2>🖥️ Partage d'écran</h2>
+            
+            <div class="button-group">
+                <button id="startShareBtn" disabled>▶️ Démarrer le partage</button>
+                <button id="stopShareBtn" disabled>⏹️ Arrêter le partage</button>
+                <button id="enterVrBtn" class="hidden">🥽 Entrer en VR</button>
+            </div>
+
+            <div id="shareStatus" class="status disconnected">
+                État: Non actif
+            </div>
+        </div>
+
+        <!-- Settings Card -->
+        <div class="card">
+            <h2>⚙️ Paramètres de qualité</h2>
+            
+            <div class="settings-grid">
+                <div class="setting-item">
+                    <label for="qualityPreset">Qualité:</label>
+                    <select id="qualityPreset">
+                        <option value="low">Basse (500 kbps)</option>
+                        <option value="medium" selected>Moyenne (1.5 Mbps)</option>
+                        <option value="high">Haute (3 Mbps)</option>
+                        <option value="custom">Personnalisée</option>
+                    </select>
+                </div>
+                
+                <div class="setting-item">
+                    <label for="resolution">Résolution:</label>
+                    <select id="resolution">
+                        <option value="640x480">640x480</option>
+                        <option value="1280x720" selected>1280x720 (HD)</option>
+                        <option value="1920x1080">1920x1080 (Full HD)</option>
+                    </select>
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="autoQuality" checked>
+                        Ajustement automatique
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="lowLatency">
+                        Faible latence
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class WebXRScreenCaster {
+            constructor() {
+                this.peerConnection = null;
+                this.webSocket = null;
+                this.localStream = null;
+                this.isConnected = false;
+                this.isSharing = false;
+                this.xrSession = null;
+                this.xrSupported = false;
+                
+                this.initializeUI();
+                this.detectLocalIP();
+                this.checkWebXRSupport();
+                this.setupServiceWorker();
+            }
+
+            async setupServiceWorker() {
+                if ('serviceWorker' in navigator) {
+                    try {
+                        await navigator.serviceWorker.register('/sw.js');
+                        console.log('Service Worker enregistré');
+                    } catch (error) {
+                        console.log('Erreur Service Worker:', error);
+                    }
+                }
+            }
+
+            async checkWebXRSupport() {
+                if ('xr' in navigator) {
+                    try {
+                        const isSupported = await navigator.xr.isSessionSupported('immersive-vr');
+                        this.xrSupported = isSupported;
+                        
+                        const webxrInfo = document.getElementById('webxrInfo');
+                        const webxrStatus = document.getElementById('webxrStatus');
+                        const enterVrBtn = document.getElementById('enterVrBtn');
+                        
+                        if (isSupported) {
+                            webxrStatus.textContent = 'Disponible ✅';
+                            enterVrBtn.classList.remove('hidden');
+                        } else {
+                            webxrStatus.textContent = 'Non supporté sur cet appareil';
+                        }
+                        
+                        webxrInfo.classList.remove('hidden');
+                    } catch (error) {
+                        console.log('WebXR non supporté:', error);
+                    }
+                } else {
+                    console.log('WebXR API non disponible');
+                }
+            }
+
+            initializeUI() {
+                // Connection buttons
+                document.getElementById('connectBtn').addEventListener('click', () => this.toggleConnection());
+                document.getElementById('scanQrBtn').addEventListener('click', () => this.startQRScanner());
+                document.getElementById('stopQrBtn').addEventListener('click', () => this.stopQRScanner());
+                
+                // Screen sharing buttons
+                document.getElementById('startShareBtn').addEventListener('click', () => this.startScreenShare());
+                document.getElementById('stopShareBtn').addEventListener('click', () => this.stopScreenShare());
+                document.getElementById('enterVrBtn').addEventListener('click', () => this.enterVR());
+                
+                // Settings
+                document.getElementById('qualityPreset').addEventListener('change', (e) => {
+                    this.updateQualitySettings(e.target.value);
+                });
+            }
+
+            async detectLocalIP() {
+                try {
+                    // Utiliser WebRTC pour détecter l'IP locale
+                    const pc = new RTCPeerConnection({
+                        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                    });
+                    
+                    pc.createDataChannel('');
+                    await pc.createOffer().then(offer => pc.setLocalDescription(offer));
+                    
+                    pc.onicecandidate = (event) => {
+                        if (event.candidate) {
+                            const candidate = event.candidate.candidate;
+                            const ipMatch = candidate.match(/(\d+\.\d+\.\d+\.\d+)/);
+                            if (ipMatch) {
+                                const localIp = ipMatch[1];
+                                document.getElementById('localIp').textContent = `Votre IP: ${localIp}`;
+                                pc.close();
+                            }
+                        }
+                    };
+                } catch (error) {
+                    console.log('Impossible de détecter l\'IP locale:', error);
+                    document.getElementById('localIp').textContent = 'IP: Non détectée';
+                }
+            }
+
+            async toggleConnection() {
+                if (this.isConnected) {
+                    this.disconnect();
+                } else {
+                    await this.connect();
+                }
+            }
+
+            async connect() {
+                const serverIp = document.getElementById('serverIp').value.trim();
+                const serverPort = document.getElementById('serverPort').value;
+                
+                if (!serverIp) {
+                    alert('Veuillez entrer une adresse IP');
+                    return;
+                }
+
+                try {
+                    this.updateConnectionStatus('Connexion en cours...', 'connecting');
+                    
+                    // Construire l'URL WebSocket
+                    const wsUrl = serverIp.startsWith('ws://') || serverIp.startsWith('wss://') 
+                        ? `${serverIp}:${serverPort}`
+                        : `ws://${serverIp}:${serverPort}`;
+                    
+                    // Créer la connexion WebSocket
+                    this.webSocket = new WebSocket(wsUrl);
+                    
+                    this.webSocket.onopen = () => {
+                        this.isConnected = true;
+                        this.updateConnectionStatus('Connecté', 'connected');
+                        document.getElementById('connectBtn').textContent = '🔌 Déconnecter';
+                        document.getElementById('startShareBtn').disabled = false;
+                        this.createPeerConnection();
+                    };
+                    
+                    this.webSocket.onmessage = (event) => {
+                        this.handleWebSocketMessage(event.data);
+                    };
+                    
+                    this.webSocket.onclose = () => {
+                        this.isConnected = false;
+                        this.updateConnectionStatus('Déconnecté', 'disconnected');
+                        document.getElementById('connectBtn').textContent = '🔌 Connecter';
+                        document.getElementById('startShareBtn').disabled = true;
+                        if (this.isSharing) {
+                            this.stopScreenShare();
+                        }
+                    };
+                    
+                    this.webSocket.onerror = (error) => {
+                        console.error('Erreur WebSocket:', error);
+                        this.updateConnectionStatus('Erreur de connexion', 'disconnected');
+                    };
+                    
+                } catch (error) {
+                    console.error('Erreur de connexion:', error);
+                    this.updateConnectionStatus('Erreur de connexion', 'disconnected');
+                    alert('Erreur de connexion: ' + error.message);
+                }
+            }
+
+            disconnect() {
+                if (this.webSocket) {
+                    this.webSocket.close();
+                }
+                if (this.peerConnection) {
+                    this.peerConnection.close();
+                    this.peerConnection = null;
+                }
+                this.isConnected = false;
+            }
+
+            createPeerConnection() {
+                const config = {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                };
+
+                this.peerConnection = new RTCPeerConnection(config);
+
+                this.peerConnection.onicecandidate = (event) => {
+                    if (event.candidate && this.webSocket) {
+                        this.sendWebSocketMessage({
+                            type: 'candidate',
+                            candidate: event.candidate.candidate,
+                            sdpMid: event.candidate.sdpMid,
+                            sdpMLineIndex: event.candidate.sdpMLineIndex
+                        });
+                    }
+                };
+
+                this.peerConnection.onconnectionstatechange = () => {
+                    console.log('Connection state:', this.peerConnection.connectionState);
+                    if (this.peerConnection.connectionState === 'failed') {
+                        this.createOffer(); // Retry
+                    }
+                };
+            }
+
+            async handleWebSocketMessage(data) {
+                try {
+                    // Gérer les messages au format texte (compatible avec votre serveur)
+                    if (data.startsWith('ANSWER:')) {
+                        const sdp = data.substring(7);
+                        await this.peerConnection.setRemoteDescription({
+                            type: 'answer',
+                            sdp: sdp
+                        });
+                        return;
+                    }
+                    
+                    if (data.startsWith('CANDIDATE:')) {
+                        const parts = data.substring(10).split(',');
+                        if (parts.length >= 3) {
+                            await this.peerConnection.addIceCandidate({
+                                candidate: parts[2],
+                                sdpMid: parts[0],
+                                sdpMLineIndex: parseInt(parts[1])
+                            });
+                        }
+                        return;
+                    }
+                    
+                    if (data === 'STOP_STREAMING_REQUEST') {
+                        this.stopScreenShare();
+                        this.sendWebSocketMessage('CONFIRM_STOP_STREAMING');
+                        return;
+                    }
+
+                    // Gérer les messages JSON
+                    const message = JSON.parse(data);
+                    
+                    switch (message.type) {
+                        case 'answer':
+                            await this.peerConnection.setRemoteDescription(message);
+                            break;
+                        case 'candidate':
+                            await this.peerConnection.addIceCandidate(message);
+                            break;
+                        case 'stop_streaming':
+                            this.stopScreenShare();
+                            break;
+                    }
+                } catch (error) {
+                    console.error('Erreur traitement message:', error);
+                }
+            }
+
+            sendWebSocketMessage(message) {
+                if (this.webSocket && this.webSocket.readyState === WebSocket.OPEN) {
+                    if (typeof message === 'string') {
+                        this.webSocket.send(message);
+                    } else {
+                        this.webSocket.send(JSON.stringify(message));
+                    }
+                }
+            }
+
+            async startScreenShare() {
+                try {
+                    this.updateShareStatus('Demande de permission...', 'connecting');
+                    
+                    // Demander l'accès à l'écran
+                    this.localStream = await navigator.mediaDevices.getDisplayMedia({
+                        video: {
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 },
+                            frameRate: { ideal: 30 }
+                        },
+                        audio: false
+                    });
+
+                    // Ajouter le stream à la peer connection
+                    this.localStream.getTracks().forEach(track => {
+                        this.peerConnection.addTrack(track, this.localStream);
+                    });
+
+                    // Créer et envoyer l'offre
+                    await this.createOffer();
+
+                    this.isSharing = true;
+                    this.updateShareStatus('Streaming en cours', 'streaming');
+                    document.getElementById('startShareBtn').disabled = true;
+                    document.getElementById('stopShareBtn').disabled = false;
+
+                    // Gérer l'arrêt automatique du partage si l'utilisateur ferme
+                    this.localStream.getVideoTracks()[0].addEventListener('ended', () => {
+                        this.stopScreenShare();
+                    });
+
+                } catch (error) {
+                    console.error('Erreur partage d\'écran:', error);
+                    this.updateShareStatus('Erreur de partage', 'disconnected');
+                    alert('Erreur: ' + error.message);
+                }
+            }
+
+            async createOffer() {
+                try {
+                    const offer = await this.peerConnection.createOffer();
+                    await this.peerConnection.setLocalDescription(offer);
+                    
+                    // Envoyer au format compatible avec votre serveur
+                    this.sendWebSocketMessage(`OFFER:${offer.sdp}`);
+                    
+                    // Envoyer aussi au format JSON pour compatibilité
+                    this.sendWebSocketMessage({
+                        type: 'offer',
+                        sdp: offer.sdp
+                    });
+                } catch (error) {
+                    console.error('Erreur création offre:', error);
+                }
+            }
+
+            stopScreenShare() {
+                if (this.localStream) {
+                    this.localStream.getTracks().forEach(track => track.stop());
+                    this.localStream = null;
+                }
+
+                if (this.peerConnection) {
+                    // Supprimer les tracks
+                    this.peerConnection.getSenders().forEach(sender => {
+                        if (sender.track) {
+                            this.peerConnection.removeTrack(sender);
+                        }
+                    });
+                }
+
+                // Notifier le serveur
+                this.sendWebSocketMessage('STOP_SHARING');
+
+                this.isSharing = false;
+                this.updateShareStatus('Non actif', 'disconnected');
+                document.getElementById('startShareBtn').disabled = !this.isConnected;
+                document.getElementById('stopShareBtn').disabled = true;
+            }
+
+            async enterVR() {
+                if (!this.xrSupported) {
+                    alert('WebXR non supporté sur cet appareil');
+                    return;
+                }
+
+                try {
+                    this.xrSession = await navigator.xr.requestSession('immersive-vr');
+                    
+                    this.xrSession.addEventListener('end', () => {
+                        this.xrSession = null;
+                        document.getElementById('enterVrBtn').textContent = '🥽 Entrer en VR';
+                    });
+
+                    document.getElementById('enterVrBtn').textContent = '👁️ Sortir de VR';
+                    
+                    // Si on partage déjà l'écran, continuer en VR
+                    if (this.isSharing) {
+                        // Le partage d'écran continue automatiquement
+                        console.log('Partage d\'écran continué en VR');
+                    }
+                    
+                } catch (error) {
+                    console.error('Erreur WebXR:', error);
+                    alert('Impossible d\'entrer en VR: ' + error.message);
+                }
+            }
+
+            async startQRScanner() {
+                try {
+                    const video = document.getElementById('qrVideo');
+                    const qrCard = document.getElementById('qrScannerCard');
+                    
+                    // Demander l'accès à la caméra
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: 'environment' } // Caméra arrière si disponible
+                    });
+                    
+                    video.srcObject = stream;
+                    qrCard.classList.remove('hidden');
+                    
+                    // Analyser les frames pour détecter les QR codes
+                    this.qrCodeScanner = new QRCodeScanner(video, (result) => {
+                        this.processQRResult(result);
+                        this.stopQRScanner();
+                    });
+                    
+                } catch (error) {
+                    console.error('Erreur caméra:', error);
+                    alert('Impossible d\'accéder à la caméra: ' + error.message);
+                }
+            }
+
+            stopQRScanner() {
+                const video = document.getElementById('qrVideo');
+                const qrCard = document.getElementById('qrScannerCard');
+                
+                if (video.srcObject) {
+                    video.srcObject.getTracks().forEach(track => track.stop());
+                    video.srcObject = null;
+                }
+                
+                if (this.qrCodeScanner) {
+                    this.qrCodeScanner.stop();
+                    this.qrCodeScanner = null;
+                }
+                
+                qrCard.classList.add('hidden');
+            }
+
+            processQRResult(content) {
+                try {
+                    // Traiter différents formats
+                    let ip, port = 8080;
+                    
+                    if (content.includes(':')) {
+                        const parts = content.split(':');
+                        ip = parts[0].replace(/https?:\/\//, '');
+                        port = parseInt(parts[parts.length - 1]) || 8080;
+                    } else {
+                        ip = content.replace(/https?:\/\//, '');
+                    }
+                    
+                    // Mettre à jour les champs
+                    document.getElementById('serverIp').value = ip;
+                    document.getElementById('serverPort').value = port;
+                    
+                    // Se connecter automatiquement
+                    if (!this.isConnected) {
+                        this.connect();
+                    }
+                    
+                } catch (error) {
+                    console.error('Erreur traitement QR:', error);
+                    alert('Format QR non reconnu');
+                }
+            }
+
+            updateConnectionStatus(message, type) {
+                const status = document.getElementById('connectionStatus');
+                status.textContent = `État: ${message}`;
+                status.className = `status ${type}`;
+            }
+
+            updateShareStatus(message, type) {
+                const status = document.getElementById('shareStatus');
+                status.textContent = `État: ${message}`;
+                status.className = `status ${type}`;
+            }
+
+            updateQualitySettings(preset) {
+                // Implémenter les réglages de qualité selon le preset
+                const settings = {
+                    low: { bitrate: 500000, resolution: '640x480' },
+                    medium: { bitrate: 1500000, resolution: '1280x720' },
+                    high: { bitrate: 3000000, resolution: '1920x1080' }
+                };
+                
+                if (settings[preset]) {
+                    document.getElementById('resolution').value = settings[preset].resolution;
+                    console.log(`Qualité mise à jour: ${preset}`);
+                }
+            }
+        }
+
+        // Classe QR Code Scanner simplifiée
+        class QRCodeScanner {
+            constructor(video, onResult) {
+                this.video = video;
+                this.onResult = onResult;
+                this.canvas = document.createElement('canvas');
+                this.context = this.canvas.getContext('2d');
+                this.scanning = true;
+                this.scan();
+            }
+
+            scan() {
+                if (!this.scanning) return;
+                
+                if (this.video.readyState === this.video.HAVE_ENOUGH_DATA) {
+                    this.canvas.width = this.video.videoWidth;
+                    this.canvas.height = this.video.videoHeight;
+                    this.context.drawImage(this.video, 0, 0);
+                    
+                    const imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                    
+                    // Ici vous pourriez intégrer une bibliothèque QR comme jsQR
+                    // Pour la démo, on simule la détection
+                    if (Math.random() < 0.001) { // 0.1% de chance par frame (simulation)
+                        this.onResult('192.168.1.100:8080');
+                        return;
+                    }
+                }
+                
+                requestAnimationFrame(() => this.scan());
+            }
+
+            stop() {
+                this.scanning = false;
+            }
+        }
+
+        // Initialiser l'application
+        const app = new WebXRScreenCaster();
+        
+        // Gérer l'installation PWA
+        let deferredPrompt;
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // Créer un bouton d'installation
+            const installButton = document.createElement('button');
+            installButton.textContent = '📱 Installer l\'app';
+            installButton.style.position = 'fixed';
+            installButton.style.bottom = '20px';
+            installButton.style.right = '20px';
+            installButton.style.zIndex = '1000';
+            
+            installButton.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`Installation: ${outcome}`);
+                    deferredPrompt = null;
+                    installButton.remove();
+                }
+            });
+            
+            document.body.appendChild(installButton);
+        });
+
+        // Notification quand l'app est installée
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA installée avec succès!');
+        });
+    </script>
+    
+    <!-- Script pour QR Code Scanner (jsQR) -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script>
+        // Améliorer le scanner QR avec jsQR
+        class ImprovedQRCodeScanner {
+            constructor(video, onResult) {
+                this.video = video;
+                this.onResult = onResult;
+                this.canvas = document.createElement('canvas');
+                this.context = this.canvas.getContext('2d');
+                this.scanning = true;
+                this.scan();
+            }
+
+            scan() {
+                if (!this.scanning) return;
+                
+                if (this.video.readyState === this.video.HAVE_ENOUGH_DATA) {
+                    this.canvas.width = this.video.videoWidth;
+                    this.canvas.height = this.video.videoHeight;
+                    this.context.drawImage(this.video, 0, 0);
+                    
+                    const imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                    
+                    if (typeof jsQR !== 'undefined') {
+                        const code = jsQR(imageData.data, imageData.width, imageData.height);
+                        if (code) {
+                            this.onResult(code.data);
+                            return;
+                        }
+                    }
+                }
+                
+                requestAnimationFrame(() => this.scan());
+            }
+
+            stop() {
+                this.scanning = false;
+            }
+        }
+
+        // Remplacer le scanner QR basique par le scanner amélioré
+        WebXRScreenCaster.prototype.startQRScanner = async function() {
+            try {
+                const video = document.getElementById('qrVideo');
+                const qrCard = document.getElementById('qrScannerCard');
+                
+                // Demander l'accès à la caméra
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    } 
+                });
+                
+                video.srcObject = stream;
+                qrCard.classList.remove('hidden');
+                
+                // Utiliser le scanner amélioré
+                this.qrCodeScanner = new ImprovedQRCodeScanner(video, (result) => {
+                    this.processQRResult(result);
+                    this.stopQRScanner();
+                });
+                
+            } catch (error) {
+                console.error('Erreur caméra:', error);
+                alert('Impossible d\'accéder à la caméra: ' + error.message);
+            }
+        };
+    </script>
+</body>
+</html>
